@@ -87,6 +87,8 @@ type PNGRenderer struct {
 	emojiProvider *fontpkg.EmojiProvider
 	maskCache     map[maskKey]*image.Alpha
 	origin        *gradientClipOrigin
+	multiColumns  map[*parse.Node]*layout.MultiColumnLayout
+	owners        map[*parse.Node]*parse.Node
 }
 
 type maskKey struct {
@@ -120,6 +122,8 @@ func RenderPNG(tree *layout.LayoutTree, styles map[*parse.Node]*style.ComputedSt
 		reverse:       reverse,
 		wrappedText:   o.WrappedText,
 		emojiProvider: o.EmojiProvider,
+		multiColumns:  tree.MultiColumns,
+		owners:        tree.MultiColumnOwners,
 	}
 
 	if tree.Root != nil {
@@ -134,6 +138,20 @@ func RenderPNG(tree *layout.LayoutTree, styles map[*parse.Node]*style.ComputedSt
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+func (r *PNGRenderer) sub(img *image.RGBA) *PNGRenderer {
+	return &PNGRenderer{
+		img:           img,
+		styles:        r.styles,
+		fonts:         r.fonts,
+		reverse:       r.reverse,
+		wrappedText:   r.wrappedText,
+		emojiProvider: r.emojiProvider,
+		origin:        r.origin,
+		multiColumns:  r.multiColumns,
+		owners:        r.owners,
+	}
 }
 
 func (r *PNGRenderer) renderNode(node *layout.Node, pn *parse.Node, cs *style.ComputedStyle, parentX, parentY float64) {
@@ -156,15 +174,7 @@ func (r *PNGRenderer) renderNode(node *layout.Node, pn *parse.Node, cs *style.Co
 	if opacity < 1 {
 		tmp := acquireRGBA(r.img.Bounds())
 		defer releaseRGBA(tmp)
-		sub := &PNGRenderer{
-			img:           tmp,
-			styles:        r.styles,
-			fonts:         r.fonts,
-			reverse:       r.reverse,
-			wrappedText:   r.wrappedText,
-			emojiProvider: r.emojiProvider,
-			origin:        r.origin,
-		}
+		sub := r.sub(tmp)
 		sub.renderNodeContent(node, pn, cs, absX, absY)
 		bounds := image.Rect(int(absX), int(absY), int(absX+l.Width), int(absY+l.Height)).Intersect(r.img.Bounds())
 		// tmp and r.img share bounds (both allocated for r.img.Bounds()), so
@@ -201,6 +211,9 @@ func (r *PNGRenderer) renderNodeContent(node *layout.Node, pn *parse.Node, cs *s
 	l := node.Layout
 
 	if pn != nil && pn.Type == parse.TextNode {
+		if _, owned := r.owners[pn]; owned {
+			return
+		}
 		r.renderTextNode(l, pn, cs, absX, absY)
 		return
 	}
@@ -214,6 +227,11 @@ func (r *PNGRenderer) renderNodeContent(node *layout.Node, pn *parse.Node, cs *s
 
 	if pn != nil && pn.Tag == "svg" {
 		r.renderInlineSVG(pn, cs, absX, absY, l.Width, l.Height)
+		return
+	}
+
+	if mc, ok := r.multiColumns[pn]; ok {
+		r.renderMultiColumn(mc, absX, absY)
 		return
 	}
 
@@ -263,7 +281,8 @@ func (r *PNGRenderer) renderNodeContent(node *layout.Node, pn *parse.Node, cs *s
 	if cs.Overflow == style.OverflowHidden {
 		clip := image.Rect(int(absX), int(absY), int(absX+l.Width), int(absY+l.Height))
 		tmp := acquireRGBA(r.img.Bounds())
-		sub := &PNGRenderer{img: tmp, styles: r.styles, fonts: r.fonts, reverse: r.reverse, wrappedText: r.wrappedText, emojiProvider: r.emojiProvider, origin: childOrigin}
+		sub := r.sub(tmp)
+		sub.origin = childOrigin
 		for _, child := range node.Children {
 			cpn := sub.reverse[child]
 			ccs := sub.styles[cpn]

@@ -1,0 +1,9 @@
+<div style="width:1200px;height:630px;background:#0B0F19;display:flex;align-items:center;justify-content:center">
+  <div style="width:900px;height:420px;background:#FFFFFF;border-radius:16px;padding:40px;column-count:2;column-gap:48px;font-family:sans-serif;font-size:22px;line-height:32px;color:#1F2937;overflow:hidden">
+    <span style="font-weight:700;font-size:30px;color:#0B0F19">Design Notes</span>
+    The poster layout engine now flows long-form copy into balanced columns without absolute positioning. Text wraps against the resolved column width using the same line-breaking rules as every other text box, including word-break and white-space handling.
+    Inline styling stays intact across the column boundary. Words set in <span style="font-style:italic;font-weight:700">bold italic</span> keep their face when a fragment continues into the next column, because each fragment reuses the source node's computed style.
+    Reading order follows the source document: the first column fills top to bottom before the second column begins, and the SVG and raster outputs share one layout pass so their geometry is identical down to the glyph origin.
+    When the copy exceeds the available columns, overflowing line boxes are clipped at the container instead of spilling over the poster edge, giving a deterministic result for fixed-height artwork.
+  </div>
+</div>

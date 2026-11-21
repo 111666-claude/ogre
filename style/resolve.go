@@ -528,6 +528,13 @@ func resolveStyle(props map[string]string, parent *ComputedStyle, rootFontSize, 
 		cs.GridRowEnd = parseGridToken(v)
 	}
 
+	if v, ok := props["column-count"]; ok {
+		if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil && n > 0 {
+			cs.ColumnCount = n
+		}
+	}
+	cs.ColumnWidth = resolveValue(props, "column-width", ctx)
+
 	return cs
 }
 

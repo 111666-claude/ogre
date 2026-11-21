@@ -223,6 +223,43 @@ func (r *Renderer) Render(html string, opts Options) (*Result, error) {
 
 	tree := layout.ComputeLayout(root, styles, w, h, measureText)
 
+	wrapColumnText := func(pn *parse.Node, cs *style.ComputedStyle, columnWidth float64) []layout.WrappedLine {
+		face := r.fonts.Resolve(cs.FontFamily, cs.FontWeight, cs.FontStyle)
+		if face == nil {
+			return nil
+		}
+		ff, err := r.fonts.NewFace(face, cs.FontSize)
+		if err != nil {
+			return nil
+		}
+		cfg := font.WrapConfig{
+			MaxWidth:      columnWidth,
+			FontFace:      ff,
+			FontSize:      cs.FontSize,
+			LineHeight:    cs.LineHeight,
+			LetterSpacing: cs.LetterSpacing,
+			WhiteSpace:    int(cs.WhiteSpace),
+			WordBreak:     int(cs.WordBreak),
+			LineClamp:     cs.LineClamp,
+			TextOverflow:  cs.TextOverflow,
+			Face:          face,
+			Variations:    toFontVariations(cs.FontVariationSettings),
+		}
+		lines := font.WrapText(pn.Text, cfg)
+		if len(lines) == 0 {
+			return nil
+		}
+		wrappedText[pn] = lines
+		out := make([]layout.WrappedLine, len(lines))
+		for i, l := range lines {
+			out[i] = layout.WrappedLine{Text: l.Text, Width: l.Width}
+		}
+		return out
+	}
+	if err := layout.ComputeMultiColumns(tree, styles, wrapColumnText); err != nil {
+		return nil, err
+	}
+
 	var emojiProvider *font.EmojiProvider
 	if opts.EmojiProvider != "none" {
 		emojiProvider = font.NewEmojiProvider()

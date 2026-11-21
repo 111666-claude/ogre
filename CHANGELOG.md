@@ -1,6 +1,12 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [Unreleased]
+
+### Features
+
+- Multi-column text layout: `column-count`, `column-width`, and `column-gap` fragment a fixed-height container's inline text into balanced columns, preserving inline font styles and source reading order across identical SVG and raster geometry; nested blocks and inline media return an explicit error
+
 ## [3.4.1] - 2026-10-28
 
 ### Bug Fixes

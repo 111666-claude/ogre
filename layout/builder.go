@@ -6,15 +6,72 @@ import (
 )
 
 type LayoutTree struct {
-	Root    *Node
-	NodeMap map[*parse.Node]*Node
+	Root              *Node
+	NodeMap           map[*parse.Node]*Node
+	MultiColumns      map[*parse.Node]*MultiColumnLayout
+	MultiColumnOwners map[*parse.Node]*parse.Node
+}
+
+// MultiColumnOwner returns the multicol container that owns a text node and
+// whether the node participates in column fragmentation.
+func (t *LayoutTree) MultiColumnOwner(pn *parse.Node) (*parse.Node, bool) {
+	owner, ok := t.MultiColumnOwners[pn]
+	return owner, ok
+}
+
+// TextPlacement records where a multicol container places one of its text
+// nodes: the column it starts in and the wrapped-line range visible there.
+type TextPlacement struct {
+	Column    int
+	StartLine int
+	EndLine   int
+}
+
+// Continuation is a fragment of a text node split across a column boundary,
+// rendered in another column at the node's StartLine-th wrapped line.
+type Continuation struct {
+	ParseNode *parse.Node
+	Column    int
+	StartLine int
+	EndLine   int
+}
+
+// MultiColumnLayout holds the resolved column geometry and per-text-node
+// placement for one multicol container.
+type MultiColumnLayout struct {
+	Columns       []ColumnBox
+	Placements    map[*parse.Node]TextPlacement
+	Order         []*parse.Node
+	Continuations []Continuation
+	OverflowLines int
+}
+
+// ColumnBox is the content box of one multicol column, positioned relative to
+// the container's border box.
+type ColumnBox struct {
+	X      float64
+	Y      float64
+	Width  float64
+	Height float64
 }
 
 type MeasureTextFunc func(pn *parse.Node, text string, cs *style.ComputedStyle, maxWidth float64) (float64, float64)
 
+// WrappedLine is one wrapped line of a text node, measured at the column width.
+type WrappedLine struct {
+	Text  string
+	Width float64
+}
+
+// WrapTextFunc wraps one text node at a given column width, returning the
+// lines in source order.
+type WrapTextFunc func(pn *parse.Node, cs *style.ComputedStyle, columnWidth float64) []WrappedLine
+
 func BuildTree(root *parse.Node, styles map[*parse.Node]*style.ComputedStyle, measureText MeasureTextFunc) *LayoutTree {
 	tree := &LayoutTree{
-		NodeMap: make(map[*parse.Node]*Node),
+		NodeMap:           make(map[*parse.Node]*Node),
+		MultiColumns:      make(map[*parse.Node]*MultiColumnLayout),
+		MultiColumnOwners: make(map[*parse.Node]*parse.Node),
 	}
 	tree.Root = buildNode(root, styles, measureText, tree.NodeMap)
 	return tree

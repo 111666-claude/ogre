@@ -105,6 +105,9 @@ type ComputedStyle struct {
 	GridColumnEnd   GridPlacement
 	GridRowStart    GridPlacement
 	GridRowEnd      GridPlacement
+
+	ColumnCount int
+	ColumnWidth Value
 }
 
 // NewComputedStyle returns a ComputedStyle with default values.

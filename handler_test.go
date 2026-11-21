@@ -132,3 +132,22 @@ func TestHandlerInvalidJSON(t *testing.T) {
 		t.Fatalf("expected 400, got %d", rec.Code)
 	}
 }
+
+func TestHandlerMultiColumnRejection(t *testing.T) {
+	r := NewRenderer()
+	h := r.Handler(HandlerConfig{Format: FormatSVG})
+
+	body := `{"html":"<div style=\"width:400px;height:300px;column-count:2\">text<img src=\"x.png\"/></div>","width":400,"height":300}`
+	req := httptest.NewRequest(http.MethodPost, "/og", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500 for unsupported multicol content, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "multicolumn") {
+		t.Errorf("expected multicol error detail, got: %s", rec.Body.String())
+	}
+}

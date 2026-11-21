@@ -68,6 +68,22 @@ func RenderText(lines []font.TextLine, cs *style.ComputedStyle, boxX, boxY, boxW
 	return RenderTextWithIDGen(lines, cs, boxX, boxY, boxW, boxH, boxX, boxY, boxW, boxH, nil, nil, nil)
 }
 
+// RenderTextFragment renders the lines [start,end) of a multicol text node
+// inside a column box. ColumnX/ColumnY is the column's absolute content-box
+// origin; line indexes are relative to the node's full wrapped line list.
+func RenderTextFragment(lines []font.TextLine, cs *style.ComputedStyle, start, end int, columnX, columnY, columnWidth, columnHeight float64, idGen func(string) string, fontMgr *font.Manager, emojiProvider ...*font.EmojiProvider) TextRenderResult {
+	if start < 0 || end > len(lines) || start >= end {
+		return TextRenderResult{}
+	}
+	fragment := make([]font.TextLine, end-start)
+	for i := start; i < end; i++ {
+		fragment[i-start] = lines[i]
+		fragment[i-start].Y = float64(i-start) * cs.LineHeight
+	}
+	return RenderTextWithIDGen(fragment, cs, columnX, columnY, columnWidth, columnHeight,
+		columnX, columnY, columnWidth, columnHeight, idGen, fontMgr, emojiProvider...)
+}
+
 // RenderTextWithIDGen generates the corresponding output format. gradX/Y/W/H give the box
 // the background-clip:text gradient should be sized against, which may be an ancestor's
 // box when this text node inherited the clip rather than declaring it itself.

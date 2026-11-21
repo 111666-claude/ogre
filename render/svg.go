@@ -19,8 +19,17 @@ type RenderContext struct {
 	WrappedText   map[*parse.Node][]font.TextLine
 	FontMgr       *font.Manager
 	EmojiProvider *font.EmojiProvider
+	MultiColumns  map[*parse.Node]*layout.MultiColumnLayout
+	Owners        map[*parse.Node]*parse.Node
 	reverse       map[*layout.Node]*parse.Node
 	ids           idGen
+}
+
+// NodeMapOwner reports whether a text node belongs to a multicol container and
+// returns that container.
+func (ctx *RenderContext) NodeMapOwner(pn *parse.Node) (*parse.Node, bool) {
+	owner, ok := ctx.Owners[pn]
+	return owner, ok
 }
 
 type idGen struct{ n int }
@@ -59,6 +68,8 @@ func RenderSVGWithOptions(tree *layout.LayoutTree, styles map[*parse.Node]*style
 		WrappedText:   wrappedText,
 		FontMgr:       opts.FontMgr,
 		EmojiProvider: opts.EmojiProvider,
+		MultiColumns:  tree.MultiColumns,
+		Owners:        tree.MultiColumnOwners,
 		reverse:       make(map[*layout.Node]*parse.Node, len(tree.NodeMap)),
 	}
 	for pn, ln := range tree.NodeMap {
@@ -123,6 +134,9 @@ func renderNodeAt(b *strings.Builder, node *layout.Node, pn *parse.Node, cs *sty
 	}
 
 	if pn != nil && pn.Type == parse.TextNode {
+		if _, owned := ctx.NodeMapOwner(pn); owned {
+			return
+		}
 		if lines, ok := ctx.WrappedText[pn]; ok && len(lines) > 0 {
 			gx, gy, gw, gh := absX, absY, l.Width, l.Height
 			if origin != nil {
@@ -227,6 +241,8 @@ func renderNodeAt(b *strings.Builder, node *layout.Node, pn *parse.Node, cs *sty
 			}
 		} else if pn != nil && pn.Tag == "svg" {
 			b.WriteString(RenderInlineSVG(pn, absX, absY, l.Width, l.Height))
+		} else if mc, ok := ctx.MultiColumns[pn]; ok {
+			ctx.renderMultiColumnSVG(b, mc, absX, absY)
 		} else {
 			for _, child := range node.Children {
 				cpn := ctx.reverse[child]

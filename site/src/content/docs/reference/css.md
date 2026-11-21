@@ -37,6 +37,25 @@ Ogre supports a subset of CSS designed for image generation. All properties can 
 > [!NOTE]
 > `<div>` defaults to `display: block` (browser behavior). Set `display: flex` explicitly to opt into flexbox layout.
 
+## Multi-column layout
+
+| Property | Values |
+|----------|--------|
+| `column-count` | Positive integer (e.g. `2`) |
+| `column-width` | Length (e.g. `180px`) |
+| `column-gap` | Length values |
+
+Multi-column layout fragments a **fixed-height** container's inline text into
+columns. Text keeps the normal wrapping and `white-space`/`word-break` rules,
+inline font styles survive column breaks, and reading order follows the source
+document. SVG and raster output share one layout pass, so their geometry is
+identical. Overflowing lines are clipped at the container; give the box
+`overflow: hidden` for a hard clip. Only phrasing content (text and inline
+elements such as `<span>`) is fragmented — nested blocks, flex/grid children,
+absolutely positioned elements, and inline media (e.g. `<img>`) return a
+render error. When neither `column-count` nor `column-width` is set, layout is
+unchanged.
+
 ## Box model
 
 | Property | Values |
